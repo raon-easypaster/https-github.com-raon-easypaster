@@ -831,23 +831,30 @@
           setView('dashboard');
         };
 
-        const handleSubmitReport = (report) => {
-          setSubmittedReports(prevReports => {
-            if (editingReportId) {
-              // Update existing report by mapping over the previous reports
-              return prevReports.map(r => (r.id === editingReportId ? report : r));
-            } else {
-              // Create a new report with a new ID
-              const reportToSubmit = { ...report, id: new Date().toISOString() };
-              return [reportToSubmit, ...prevReports];
-            }
-          });
-        
-          // Reset state and switch view after submission
-          setEditingReportId(null);
-          setDraftReport(EMPTY_REPORT);
-          setView('dashboard');
-        };
+        const handleSubmitReport = useCallback((report) => {
+            setSubmittedReports(prevReports => {
+                if (editingReportId) {
+                    // Logic for updating an existing report
+                    const index = prevReports.findIndex(r => r.id === editingReportId);
+                    if (index > -1) {
+                        const newReports = [...prevReports];
+                        newReports[index] = report; // Replace the old report with the updated one
+                        return newReports;
+                    }
+                    return prevReports; // Return old state if not found
+                } else {
+                    // Logic for adding a new report
+                    const reportToSubmit = { ...report, id: new Date().toISOString() };
+                    return [reportToSubmit, ...prevReports];
+                }
+            });
+
+            // Reset state and switch view after submission
+            setEditingReportId(null);
+            setDraftReport(EMPTY_REPORT);
+            setView('dashboard');
+        }, [editingReportId, setSubmittedReports, setDraftReport, setEditingReportId, setView]);
+
 
         return (
           <div className="min-h-screen bg-gray-50 text-gray-800">
