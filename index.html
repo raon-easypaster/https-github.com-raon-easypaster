@@ -819,7 +819,6 @@
           const reportToEdit = submittedReports.find(r => r.id === reportId);
           if (reportToEdit) {
             setEditingReportId(reportId);
-            // Deep copy the report object to prevent mutations of the original state.
             setDraftReport(JSON.parse(JSON.stringify(reportToEdit)));
             setView('form');
           }
@@ -832,27 +831,23 @@
         };
 
         const handleSubmitReport = (reportDataFromForm) => {
-            setSubmittedReports(currentReports => {
-                if (editingReportId) {
-                    // UPDATE
-                    const reportIndex = currentReports.findIndex(r => r.id === editingReportId);
-                    if (reportIndex === -1) {
-                        return currentReports; // Should not happen, but as a safeguard
-                    }
-                    const updatedReports = [...currentReports];
-                    updatedReports[reportIndex] = { ...reportDataFromForm, id: editingReportId };
-                    return updatedReports;
-                } else {
-                    // CREATE
-                    const newReport = { ...reportDataFromForm, id: new Date().toISOString() };
-                    return [newReport, ...currentReports];
-                }
-            });
+          const isEditing = !!editingReportId;
+          
+          if (isEditing) {
+              const updatedReports = submittedReports.map(report =>
+                  report.id === editingReportId
+                      ? { ...reportDataFromForm, id: editingReportId }
+                      : report
+              );
+              setSubmittedReports(updatedReports);
+          } else {
+              const newReport = { ...reportDataFromForm, id: new Date().toISOString() };
+              setSubmittedReports([newReport, ...submittedReports]);
+          }
 
-            // Reset state and switch view after submission
-            setEditingReportId(null);
-            setDraftReport(EMPTY_REPORT);
-            setView('dashboard');
+          setEditingReportId(null);
+          setDraftReport(EMPTY_REPORT);
+          setView('dashboard');
         };
 
 
