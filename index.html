@@ -29,19 +29,742 @@
         }
       }
     </script>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "recharts": "https://aistudiocdn.com/recharts@^3.4.1"
-  }
-}
-</script>
-</head>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://aistudiocdn.com/react@^19.2.0",
+          "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+          "react/": "https://aistudiocdn.com/react@^19.2.0/",
+          "recharts": "https://aistudiocdn.com/recharts@^3.4.1"
+        }
+      }
+    </script>
+  </head>
   <body class="bg-gray-50">
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <script type="text/babel" data-type="module">
+      import React, { useState, useEffect, useMemo, useCallback } from 'react';
+      import ReactDOM from 'react-dom/client';
+      import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line, BarChart, Bar } from 'recharts';
+
+      // --- From constants.ts ---
+      const EMPTY_REPORT = {
+        id: '',
+        date: new Date().toISOString().slice(0, 10), // Default to today in YYYY-MM-DD
+        financeIncome: {
+          tithe: 0,
+          thanksgiving: 0,
+          mission: 0,
+          relief: 0,
+          special: 0,
+        },
+        financeExpense: {
+          worshipAndEducation: 0,
+          ministry: 0,
+          personnel: 0,
+          operations: 0,
+          facilitiesAndEquipment: 0,
+          cafeAndCommunity: 0,
+          other: 0,
+        },
+        financeBalance: {
+          previousWeekBalance: 0,
+        },
+        attendance: {
+          sundayWorship: 0,
+          weekdayWorship: 0,
+          smallGroup: 0,
+          newcomers: 0,
+        },
+        visitation: {
+          homeVisits: '',
+          hospitalVisits: '',
+          counselingRequests: '',
+          scheduledVisits: '',
+        },
+        events: {
+          thisWeekSummary: '',
+          nextWeekSchedule: '',
+        },
+        notes: {
+          memberNews: '',
+          adminAndFacilitiesIssues: '',
+          requestsAndActions: '',
+          other: '',
+        },
+      };
+
+      const DUMMY_REPORTS = [
+          {
+            id: "2024-07-21T00:00:00.000Z",
+            date: "2024-07-21",
+            financeIncome: { tithe: 1200000, thanksgiving: 300000, mission: 150000, relief: 50000, special: 200000 },
+            financeExpense: { worshipAndEducation: 250000, ministry: 180000, personnel: 800000, operations: 120000, facilitiesAndEquipment: 50000, cafeAndCommunity: 30000, other: 20000 },
+            financeBalance: { previousWeekBalance: 5000000 },
+            attendance: { sundayWorship: 150, weekdayWorship: 45, smallGroup: 80, newcomers: 3 },
+            visitation: { homeVisits: "김 집사 가정 방문 (자녀 진학 문제)", hospitalVisits: "박 권사 병문안 (수술 후 회복 중)", counselingRequests: "청년 진로 상담 1건", scheduledVisits: "최 장로 가정" },
+            events: { thisWeekSummary: "청년부 여름 수련회 준비 모임", nextWeekSchedule: "전교인 야외 예배 (장소: 희망 공원)" },
+            notes: { memberNews: "이 성도 가정 득남", adminAndFacilitiesIssues: "본당 에어컨 필터 교체 필요", requestsAndActions: "주차 안내 봉사자 추가 요청", other: "" }
+          },
+          {
+            id: "2024-07-14T00:00:00.000Z",
+            date: "2024-07-14",
+            financeIncome: { tithe: 1150000, thanksgiving: 250000, mission: 180000, relief: 60000, special: 100000 },
+            financeExpense: { worshipAndEducation: 220000, ministry: 200000, personnel: 800000, operations: 110000, facilitiesAndEquipment: 0, cafeAndCommunity: 25000, other: 15000 },
+            financeBalance: { previousWeekBalance: 4600000 },
+            attendance: { sundayWorship: 145, weekdayWorship: 40, smallGroup: 75, newcomers: 1 },
+            visitation: { homeVisits: "새가족 이 성도 가정 심방", hospitalVisits: "", counselingRequests: "부부 관계 상담 1건", scheduledVisits: "김 집사 가정" },
+            events: { thisWeekSummary: "제직회", nextWeekSchedule: "청년부 수련회 준비 모임" },
+            notes: { memberNews: "최 권사 장남 결혼", adminAndFacilitiesIssues: "2층 교육관 형광등 교체", requestsAndActions: "강단 꽃꽂이 헌물 들어옴", other: "" }
+          },
+           {
+            id: "2024-07-07T00:00:00.000Z",
+            date: "2024-07-07",
+            financeIncome: { tithe: 1300000, thanksgiving: 350000, mission: 120000, relief: 40000, special: 50000 },
+            financeExpense: { worshipAndEducation: 280000, ministry: 150000, personnel: 800000, operations: 130000, facilitiesAndEquipment: 300000, cafeAndCommunity: 35000, other: 10000 },
+            financeBalance: { previousWeekBalance: 4100000 },
+            attendance: { sundayWorship: 155, weekdayWorship: 50, smallGroup: 85, newcomers: 5 },
+            visitation: { homeVisits: "오랜 결석자 정 성도 가정 심방", hospitalVisits: "윤 장로 병문안 (정기 검진)", counselingRequests: "", scheduledVisits: "새가족 이 성도 가정" },
+            events: { thisWeekSummary: "맥추감사주일 특별 예배", nextWeekSchedule: "정기 제직회" },
+            notes: { memberNews: "", adminAndFacilitiesIssues: "음향 장비 점검 완료", requestsAndActions: "", other: "감사 헌금 특별 기도 제목 다수" }
+          }
+      ];
+
+      // --- From hooks/useLocalStorage.ts ---
+      function useLocalStorage(key, initialValue) {
+        const [storedValue, setStoredValue] = useState(() => {
+          if (typeof window === 'undefined') {
+            return initialValue;
+          }
+          try {
+            const item = window.localStorage.getItem(key);
+            return item ? JSON.parse(item) : initialValue;
+          } catch (error) {
+            console.error(error);
+            return initialValue;
+          }
+        });
+
+        useEffect(() => {
+          try {
+            const valueToStore =
+              typeof storedValue === 'function'
+                ? storedValue(storedValue)
+                : storedValue;
+            window.localStorage.setItem(key, JSON.stringify(valueToStore));
+          } catch (error) {
+            console.error(error);
+          }
+        }, [key, storedValue]);
+
+        return [storedValue, setStoredValue];
+      }
+      
+      const formatCurrency = (value) => {
+          if (!value && value !== 0) return '₩-';
+          if (value === 0) return '₩0';
+          return `₩${Math.round(value).toLocaleString()}`;
+      };
+
+      const Card = ({ title, value, className }) => (
+          <div className={`bg-white p-4 rounded-lg shadow-md ${className}`}>
+              <p className="text-sm text-gray-500">{title}</p>
+              <p className="text-2xl font-bold text-brand-blue-800">{value}</p>
+          </div>
+      );
+
+      // --- From components/Header.tsx ---
+      const NavButton = ({ label, isActive, onClick, icon }) => (
+        <button
+          onClick={onClick}
+          className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+            isActive
+              ? 'bg-brand-blue-600 text-white'
+              : 'text-gray-600 hover:bg-brand-blue-100 hover:text-brand-blue-700'
+          }`}
+        >
+          {icon}
+          {label}
+        </button>
+      );
+
+      const Header = ({ currentView, setView }) => {
+        const ChartBarIcon = (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+          </svg>
+        );
+
+        const DocumentTextIcon = (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm2 1a1 1 0 011-1h6a1 1 0 011 1v2a1 1 0 01-1 1H7a1 1 0 01-1-1V5z" clipRule="evenodd" />
+          </svg>
+        );
+
+        const CalendarIcon = (
+           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+          </svg>
+        );
+
+        return (
+          <header className="bg-white shadow-sm sticky top-0 z-10">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-16">
+                <div className="flex items-center">
+                  <h1 className="text-xl font-bold text-brand-blue-800">교회 주간 행정보고서</h1>
+                </div>
+                <nav className="flex items-center gap-2">
+                  <NavButton
+                    label="대시보드"
+                    isActive={currentView === 'dashboard'}
+                    onClick={() => setView('dashboard')}
+                    icon={ChartBarIcon}
+                  />
+                  <NavButton
+                    label="보고서 작성"
+                    isActive={currentView === 'form'}
+                    onClick={() => setView('form')}
+                    icon={DocumentTextIcon}
+                  />
+                   <NavButton
+                    label="월별 통계"
+                    isActive={currentView === 'monthly-stats'}
+                    onClick={() => setView('monthly-stats')}
+                    icon={CalendarIcon}
+                  />
+                </nav>
+              </div>
+            </div>
+          </header>
+        );
+      };
+      
+      // --- From components/Dashboard.tsx ---
+      const Dashboard = ({ reports, onAddNewReport, onEditReport }) => {
+          const sortedReports = useMemo(() => [...reports].sort((a, b) => b.date.localeCompare(a.date)), [reports]);
+
+          const chartData = useMemo(() => {
+              return [...sortedReports].reverse().map(report => {
+                  const totalIncome = Object.values(report.financeIncome).reduce((sum, val) => sum + val, 0);
+                  const totalExpense = Object.values(report.financeExpense).reduce((sum, val) => sum + val, 0);
+                  return {
+                      date: new Date(report.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric'}),
+                      '총 수입': totalIncome,
+                      '총 지출': totalExpense,
+                      '주일예배 참석': report.attendance.sundayWorship,
+                      '새가족': report.attendance.newcomers,
+                  };
+              });
+          }, [sortedReports]);
+          
+          const latestReport = sortedReports[0];
+
+          if (!latestReport) {
+              return <div className="text-center p-8 bg-white rounded-lg shadow-md">
+                  <h2 className="text-xl font-semibold text-gray-700">데이터가 없습니다.</h2>
+                  <p className="text-gray-500 mt-2">새로운 보고서를 작성하여 분석을 시작하세요.</p>
+                  <button onClick={onAddNewReport} className="mt-4 px-4 py-2 bg-brand-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-brand-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-blue-500">
+                    새 보고서 작성
+                  </button>
+              </div>
+          }
+
+          const latestTotalIncome = Object.values(latestReport.financeIncome).reduce((a, b) => a + b, 0);
+          const latestTotalExpense = Object.values(latestReport.financeExpense).reduce((a, b) => a + b, 0);
+          const currentBalance = latestReport.financeBalance.previousWeekBalance + latestTotalIncome - latestTotalExpense;
+
+          return (
+              <div className="space-y-6">
+                  <section className="flex justify-between items-center">
+                      <h2 className="text-2xl font-bold text-gray-700">대시보드</h2>
+                       <button onClick={onAddNewReport} className="px-4 py-2 bg-brand-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-brand-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-blue-500">
+                        새 보고서 작성
+                      </button>
+                  </section>
+
+                  <section>
+                      <h3 className="text-xl font-bold text-gray-700 mb-4">최신 보고서 요약 ({new Date(latestReport.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })})</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <Card title="총 수입" value={formatCurrency(latestTotalIncome)} />
+                          <Card title="총 지출" value={formatCurrency(latestTotalExpense)} />
+                          <Card title="이번 주 잔액" value={formatCurrency(currentBalance)} />
+                          <Card title="주일예배 참석" value={`${latestReport.attendance.sundayWorship}명`} />
+                      </div>
+                  </section>
+
+                  <section className="bg-white p-6 rounded-lg shadow-md">
+                      <h3 className="text-xl font-bold text-gray-700 mb-4">재정 추이</h3>
+                      <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={chartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="date" />
+                              <YAxis tickFormatter={(val) => `₩${(val / 10000).toLocaleString()}만`} />
+                              <Tooltip formatter={(value) => formatCurrency(value)} />
+                              <Legend />
+                              <Bar dataKey="총 수입" fill="#36a9f8" />
+                              <Bar dataKey="총 지출" fill="#f87171" />
+                          </BarChart>
+                      </ResponsiveContainer>
+                  </section>
+                  
+                  <section className="bg-white p-6 rounded-lg shadow-md">
+                      <h3 className="text-xl font-bold text-gray-700 mb-4">출석 추이</h3>
+                       <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={chartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="date" />
+                              <YAxis />
+                              <Tooltip />
+                              <Legend />
+                              <Line type="monotone" dataKey="주일예배 참석" stroke="#1789e9" strokeWidth={2} />
+                              <Line type="monotone" dataKey="새가족" stroke="#10b981" strokeWidth={2} />
+                          </LineChart>
+                      </ResponsiveContainer>
+                  </section>
+
+                  <section>
+                      <h2 className="text-2xl font-bold text-gray-700 mb-4">과거 보고서 목록</h2>
+                      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                          <ul className="divide-y divide-gray-200">
+                              {sortedReports.map(report => (
+                                  <li key={report.id} className="p-4 hover:bg-gray-50 flex justify-between items-center">
+                                    <div>
+                                      <p className="font-semibold text-brand-blue-700">{new Date(report.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                      <p className="text-sm text-gray-600 mt-1">주일예배: {report.attendance.sundayWorship}명 | 새가족: {report.attendance.newcomers}명</p>
+                                    </div>
+                                    <button onClick={() => onEditReport(report.id)} className="px-3 py-1 text-sm bg-gray-200 text-gray-700 font-semibold rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
+                                      수정
+                                    </button>
+                                  </li>
+                              ))}
+                          </ul>
+                      </div>
+                  </section>
+              </div>
+          );
+      };
+      
+      // --- NEW components/MonthlyStats.tsx ---
+      const MonthlyStats = ({ reports }) => {
+        const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+        
+        const monthlyData = useMemo(() => {
+            const filteredReports = reports.filter(r => r.date.startsWith(selectedMonth));
+            
+            if(filteredReports.length === 0) {
+              return {
+                totalIncome: 0,
+                totalExpense: 0,
+                avgSundayWorship: 0,
+                totalNewcomers: 0,
+                reportCount: 0,
+              };
+            }
+            
+            const totalIncome = filteredReports.reduce((sum, r) => sum + Object.values(r.financeIncome).reduce((a, b) => a + b, 0), 0);
+            const totalExpense = filteredReports.reduce((sum, r) => sum + Object.values(r.financeExpense).reduce((a, b) => a + b, 0), 0);
+            const totalSundayWorship = filteredReports.reduce((sum, r) => sum + r.attendance.sundayWorship, 0);
+            const totalNewcomers = filteredReports.reduce((sum, r) => sum + r.attendance.newcomers, 0);
+            const reportCount = filteredReports.length;
+
+            return {
+              totalIncome,
+              totalExpense,
+              avgSundayWorship: totalSundayWorship / reportCount,
+              totalNewcomers,
+              reportCount
+            };
+        }, [reports, selectedMonth]);
+
+        return (
+          <div className="space-y-6">
+            <section className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <h2 className="text-2xl font-bold text-gray-700">월별 통계</h2>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="month-select" className="text-sm font-medium text-gray-700">월 선택:</label>
+                  <input 
+                    type="month" 
+                    id="month-select"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="shadow-sm focus:ring-brand-blue-500 focus:border-brand-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  />
+                </div>
+            </section>
+            
+             {monthlyData.reportCount > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card title="총 수입" value={formatCurrency(monthlyData.totalIncome)} />
+                  <Card title="총 지출" value={formatCurrency(monthlyData.totalExpense)} />
+                  <Card title="평균 주일예배" value={`${monthlyData.avgSundayWorship.toFixed(1)}명`} />
+                  <Card title="총 새가족" value={`${monthlyData.totalNewcomers}명`} />
+                </div>
+            ) : (
+                <div className="text-center p-8 bg-white rounded-lg shadow-md">
+                    <h3 className="text-xl font-semibold text-gray-700">{selectedMonth} 데이터가 없습니다.</h3>
+                    <p className="text-gray-500 mt-2">다른 월을 선택하거나 새로운 보고서를 작성해주세요.</p>
+                </div>
+            )}
+          </div>
+        );
+      };
+
+      // --- From components/ReportForm.tsx ---
+      const Accordion = ({ title, children, defaultOpen = false }) => {
+          const [isOpen, setIsOpen] = useState(defaultOpen);
+
+          return (
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <button
+                      type="button"
+                      className="w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 transition-colors"
+                      onClick={() => setIsOpen(!isOpen)}
+                  >
+                      <h3 className="text-lg font-semibold text-gray-700">{title}</h3>
+                      <svg
+                          className={`w-6 h-6 transform transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                      >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                  </button>
+                  {isOpen && <div className="p-4 bg-white">{children}</div>}
+              </div>
+          );
+      };
+
+      const NumberInput = ({ label, value, onChange, name }) => (
+          <div>
+              <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}</label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">₩</span>
+                  </div>
+                  <input
+                      type="number"
+                      name={name}
+                      id={name}
+                      className="focus:ring-brand-blue-500 focus:border-brand-blue-500 block w-full pl-7 pr-2 sm:text-sm border-gray-300 rounded-md"
+                      value={value}
+                      onChange={onChange}
+                      placeholder="0"
+                  />
+              </div>
+          </div>
+      );
+      
+      const SimpleNumberInput = ({ label, value, onChange, name }) => (
+        <div>
+          <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}</label>
+          <div className="mt-1 relative rounded-md shadow-sm">
+            <input
+              type="number"
+              name={name}
+              id={name}
+              className="focus:ring-brand-blue-500 focus:border-brand-blue-500 block w-full pr-8 sm:text-sm border-gray-300 rounded-md"
+              value={value}
+              onChange={onChange}
+              placeholder="0"
+            />
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <span className="text-gray-500 sm:text-sm">명</span>
+            </div>
+          </div>
+        </div>
+      );
+
+      const TextInput = ({ label, value, onChange, name, rows, type = 'text' }) => (
+           <div>
+              <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}</label>
+              <div className="mt-1">
+                 {rows ? (
+                      <textarea
+                          rows={rows}
+                          name={name}
+                          id={name}
+                          className="shadow-sm focus:ring-brand-blue-500 focus:border-brand-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          value={value}
+                          onChange={onChange}
+                      />
+                 ) : (
+                      <input
+                          type={type}
+                          name={name}
+                          id={name}
+                          className="shadow-sm focus:ring-brand-blue-500 focus:border-brand-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                          value={value}
+                          onChange={onChange}
+                      />
+                 )}
+              </div>
+          </div>
+      );
+
+
+      const ReportForm = ({ draftReport, onSaveDraft, onSubmitReport, isEditing, onCancel }) => {
+        const [report, setReport] = useState(draftReport);
+
+        useEffect(() => {
+          setReport(draftReport);
+        }, [draftReport]);
+
+        const handleNumericChange = (section, field) => (e) => {
+          const value = parseInt(e.target.value, 10) || 0;
+          setReport(prev => ({
+            ...prev,
+            [section]: { ...prev[section], [field]: value }
+          }));
+        };
+        
+        const handleTextChange = (section, field) => (e) => {
+          const { value } = e.target;
+          setReport(prev => ({
+            ...prev,
+            [section]: { ...prev[section], [field]: value }
+          }));
+        };
+
+        const handleDateChange = (e) => {
+          setReport(prev => ({...prev, date: e.target.value}));
+        };
+
+        const totalIncome = useMemo(() => Object.values(report.financeIncome).reduce((sum, val) => sum + val, 0), [report.financeIncome]);
+        const totalExpense = useMemo(() => Object.values(report.financeExpense).reduce((sum, val) => sum + val, 0), [report.financeExpense]);
+        const currentBalance = useMemo(() => report.financeBalance.previousWeekBalance + totalIncome - totalExpense, [report.financeBalance.previousWeekBalance, totalIncome, totalExpense]);
+
+        const handleSave = () => {
+          onSaveDraft(report);
+          alert('초안이 저장되었습니다.');
+        };
+        
+        const handleSubmit = () => {
+          if (!report.date) {
+            alert('보고서 날짜를 입력해주세요.');
+            return;
+          }
+          const confirmationMessage = isEditing 
+            ? '보고서를 수정하시겠습니까?'
+            : '보고서를 제출하시겠습니까? 제출 후에는 대시보드로 이동합니다.';
+
+          if (window.confirm(confirmationMessage)) {
+              onSubmitReport(report);
+          }
+        };
+
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-gray-800">{isEditing ? "주간 행정보고서 수정" : "주간 행정보고서 작성"}</h2>
+              <p className="text-gray-500 mt-1">각 항목을 기입하고 저장 또는 제출해주세요.</p>
+            </div>
+
+            <form className="space-y-4">
+              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                <TextInput label="보고서 날짜" type="date" name="reportDate" value={report.date} onChange={handleDateChange} />
+              </div>
+
+              <Accordion title="1. 재정 보고" defaultOpen>
+                  <div className="space-y-6">
+                       <div>
+                          <h4 className="font-semibold text-gray-600 border-b pb-2 mb-3">1) 주간 수입 요약</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              <NumberInput label="십일조" name="tithe" value={report.financeIncome.tithe} onChange={handleNumericChange('financeIncome', 'tithe')} />
+                              <NumberInput label="감사" name="thanksgiving" value={report.financeIncome.thanksgiving} onChange={handleNumericChange('financeIncome', 'thanksgiving')} />
+                              <NumberInput label="선교" name="mission" value={report.financeIncome.mission} onChange={handleNumericChange('financeIncome', 'mission')} />
+                              <NumberInput label="구제" name="relief" value={report.financeIncome.relief} onChange={handleNumericChange('financeIncome', 'relief')} />
+                              <NumberInput label="특별/기타" name="special" value={report.financeIncome.special} onChange={handleNumericChange('financeIncome', 'special')} />
+                              <div className="p-4 bg-blue-50 rounded-md text-right">
+                                  <p className="text-sm font-medium text-blue-800">총 수입</p>
+                                  <p className="text-xl font-bold text-blue-800">{totalIncome.toLocaleString()} 원</p>
+                              </div>
+                          </div>
+                      </div>
+                       <div>
+                          <h4 className="font-semibold text-gray-600 border-b pb-2 mb-3">2) 주간 지출 요약</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              <NumberInput label="예배·교육비" name="worshipAndEducation" value={report.financeExpense.worshipAndEducation} onChange={handleNumericChange('financeExpense', 'worshipAndEducation')} />
+                              <NumberInput label="사역비" name="ministry" value={report.financeExpense.ministry} onChange={handleNumericChange('financeExpense', 'ministry')} />
+                              <NumberInput label="인건비" name="personnel" value={report.financeExpense.personnel} onChange={handleNumericChange('financeExpense', 'personnel')} />
+                              <NumberInput label="운영비" name="operations" value={report.financeExpense.operations} onChange={handleNumericChange('financeExpense', 'operations')} />
+                              <NumberInput label="시설·비품" name="facilitiesAndEquipment" value={report.financeExpense.facilitiesAndEquipment} onChange={handleNumericChange('financeExpense', 'facilitiesAndEquipment')} />
+                              <NumberInput label="카페·공동체" name="cafeAndCommunity" value={report.financeExpense.cafeAndCommunity} onChange={handleNumericChange('financeExpense', 'cafeAndCommunity')} />
+                              <NumberInput label="기타" name="other" value={report.financeExpense.other} onChange={handleNumericChange('financeExpense', 'other')} />
+                              <div className="p-4 bg-red-50 rounded-md text-right">
+                                  <p className="text-sm font-medium text-red-800">총 지출</p>
+                                  <p className="text-xl font-bold text-red-800">{totalExpense.toLocaleString()} 원</p>
+                              </div>
+                          </div>
+                      </div>
+                      <div>
+                          <h4 className="font-semibold text-gray-600 border-b pb-2 mb-3">3) 주간 잔액</h4>
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <NumberInput label="전주 이월" name="previousWeekBalance" value={report.financeBalance.previousWeekBalance} onChange={handleNumericChange('financeBalance', 'previousWeekBalance')} />
+                              <div className="p-4 bg-green-50 rounded-md text-right col-span-1 md:col-span-2">
+                                  <p className="text-sm font-medium text-green-800">이번 주 잔액</p>
+                                  <p className="text-xl font-bold text-green-800">{currentBalance.toLocaleString()} 원</p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </Accordion>
+              
+              <Accordion title="2. 출결 보고">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <SimpleNumberInput label="주일예배 참석 (명)" name="sundayWorship" value={report.attendance.sundayWorship} onChange={handleNumericChange('attendance', 'sundayWorship')} />
+                      <SimpleNumberInput label="주중예배 참석 (명)" name="weekdayWorship" value={report.attendance.weekdayWorship} onChange={handleNumericChange('attendance', 'weekdayWorship')} />
+                      <SimpleNumberInput label="소그룹/셀 모임 참석 (명)" name="smallGroup" value={report.attendance.smallGroup} onChange={handleNumericChange('attendance', 'smallGroup')} />
+                      <SimpleNumberInput label="새가족·방문자 (명)" name="newcomers" value={report.attendance.newcomers} onChange={handleNumericChange('attendance', 'newcomers')} />
+                  </div>
+              </Accordion>
+              
+              <Accordion title="3. 심방 보고">
+                  <div className="space-y-4">
+                      <TextInput label="가정 심방" name="homeVisits" value={report.visitation.homeVisits} onChange={handleTextChange('visitation', 'homeVisits')} rows={2}/>
+                      <TextInput label="병원 심방" name="hospitalVisits" value={report.visitation.hospitalVisits} onChange={handleTextChange('visitation', 'hospitalVisits')} rows={2}/>
+                      <TextInput label="상담·기도 요청" name="counselingRequests" value={report.visitation.counselingRequests} onChange={handleTextChange('visitation', 'counselingRequests')} rows={2}/>
+                      <TextInput label="예정된 심방" name="scheduledVisits" value={report.visitation.scheduledVisits} onChange={handleTextChange('visitation', 'scheduledVisits')} rows={2}/>
+                  </div>
+              </Accordion>
+              
+              <Accordion title="4. 행사 및 일정">
+                   <div className="space-y-4">
+                      <TextInput label="금주 진행 행사 요약" name="thisWeekSummary" value={report.events.thisWeekSummary} onChange={handleTextChange('events', 'thisWeekSummary')} rows={3}/>
+                      <TextInput label="다음 주 주요 일정" name="nextWeekSchedule" value={report.events.nextWeekSchedule} onChange={handleTextChange('events', 'nextWeekSchedule')} rows={3}/>
+                  </div>
+              </Accordion>
+              
+              <Accordion title="5. 특이사항 및 비고">
+                  <div className="space-y-4">
+                      <TextInput label="성도 동정 (입원/회복/이사 등)" name="memberNews" value={report.notes.memberNews} onChange={handleTextChange('notes', 'memberNews')} rows={3}/>
+                      <TextInput label="행정·시설 이슈" name="adminAndFacilitiesIssues" value={report.notes.adminAndFacilitiesIssues} onChange={handleTextChange('notes', 'adminAndFacilitiesIssues')} rows={3}/>
+                      <TextInput label="요청/조치 사항" name="requestsAndActions" value={report.notes.requestsAndActions} onChange={handleTextChange('notes', 'requestsAndActions')} rows={3}/>
+                      <TextInput label="기타 기록" name="other" value={report.notes.other} onChange={handleTextChange('notes', 'other')} rows={3}/>
+                  </div>
+              </Accordion>
+            </form>
+            
+            <div className="flex justify-end gap-4 pt-4 sticky bottom-0 bg-gray-50 py-4">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-6 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-blue-500"
+              >
+                취소
+              </button>
+               <button
+                type="button"
+                onClick={handleSave}
+                className="px-6 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-blue-500"
+              >
+                초안 저장
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-blue-600 hover:bg-brand-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-blue-500"
+              >
+                {isEditing ? '보고서 업데이트' : '보고서 제출'}
+              </button>
+            </div>
+          </div>
+        );
+      };
+
+      // --- From App.tsx ---
+      const App = () => {
+        const [view, setView] = useState('dashboard');
+        const [submittedReports, setSubmittedReports] = useLocalStorage('submittedReports', DUMMY_REPORTS);
+        const [draftReport, setDraftReport] = useLocalStorage('draftReport', EMPTY_REPORT);
+        const [editingReportId, setEditingReportId] = useState(null);
+
+        const handleSaveDraft = useCallback((report) => {
+          setDraftReport(report);
+        }, [setDraftReport]);
+
+        const handleAddNewReport = useCallback(() => {
+          setEditingReportId(null);
+          setDraftReport({
+            ...EMPTY_REPORT,
+            date: new Date().toISOString().slice(0, 10),
+          });
+          setView('form');
+        }, [setDraftReport]);
+
+        const handleEditReport = useCallback((reportId) => {
+          const reportToEdit = submittedReports.find(r => r.id === reportId);
+          if (reportToEdit) {
+            setEditingReportId(reportId);
+            setDraftReport(reportToEdit);
+            setView('form');
+          }
+        }, [submittedReports, setDraftReport]);
+
+        const handleCancel = useCallback(() => {
+          setEditingReportId(null);
+          setDraftReport(EMPTY_REPORT);
+          setView('dashboard');
+        }, [setDraftReport]);
+
+        const handleSubmitReport = useCallback((report) => {
+          if (editingReportId) {
+            // Update existing report
+            setSubmittedReports(prev =>
+              prev.map(r => r.id === editingReportId ? report : r)
+            );
+          } else {
+            // Create new report
+            const reportToSubmit = {
+              ...report,
+              id: new Date().toISOString(),
+            };
+            setSubmittedReports(prevReports => [reportToSubmit, ...prevReports]);
+          }
+          handleCancel(); // Reset state and switch view
+        }, [setSubmittedReports, editingReportId, handleCancel]);
+
+        return (
+          <div className="min-h-screen bg-gray-50 text-gray-800">
+            <Header currentView={view} setView={setView} />
+            <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+              {view === 'form' && (
+                <ReportForm
+                  draftReport={draftReport}
+                  onSaveDraft={handleSaveDraft}
+                  onSubmitReport={handleSubmitReport}
+                  isEditing={!!editingReportId}
+                  onCancel={handleCancel}
+                />
+              )}
+              {view === 'dashboard' && (
+                <Dashboard 
+                  reports={submittedReports} 
+                  onAddNewReport={handleAddNewReport}
+                  onEditReport={handleEditReport}
+                />
+              )}
+              {view === 'monthly-stats' && <MonthlyStats reports={submittedReports} />}
+            </main>
+          </div>
+        );
+      };
+
+      // --- From index.tsx ---
+      const rootElement = document.getElementById('root');
+      if (!rootElement) {
+        throw new Error("Could not find root element to mount to");
+      }
+
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+    </script>
   </body>
 </html>
