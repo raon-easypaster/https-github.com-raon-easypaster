@@ -166,6 +166,8 @@
           if (value === 0) return '₩0';
           return `₩${Math.round(value).toLocaleString()}`;
       };
+      
+      const parseDateSafe = (dateString) => new Date(dateString + 'T00:00:00');
 
       const Card = ({ title, value, className }) => (
           <div className={`bg-white p-4 rounded-lg shadow-md ${className}`}>
@@ -234,6 +236,12 @@
                     onClick={() => setView('monthly-stats')}
                     icon={CalendarIcon}
                   />
+                  <NavButton
+                    label="연도별 통계"
+                    isActive={currentView === 'yearly-stats'}
+                    onClick={() => setView('yearly-stats')}
+                    icon={CalendarIcon}
+                  />
                 </nav>
               </div>
             </div>
@@ -250,7 +258,7 @@
                   const totalIncome = Object.values(report.financeIncome).reduce((sum, val) => sum + val, 0);
                   const totalExpense = Object.values(report.financeExpense).reduce((sum, val) => sum + val, 0);
                   return {
-                      date: new Date(report.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric'}),
+                      date: parseDateSafe(report.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric'}),
                       '총 수입': totalIncome,
                       '총 지출': totalExpense,
                       '주일예배 참석': report.attendance.sundayWorship,
@@ -285,7 +293,7 @@
                   </section>
 
                   <section>
-                      <h3 className="text-xl font-bold text-gray-700 mb-4">최신 보고서 요약 ({new Date(latestReport.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })})</h3>
+                      <h3 className="text-xl font-bold text-gray-700 mb-4">최신 보고서 요약 ({parseDateSafe(latestReport.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })})</h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           <Card title="총 수입" value={formatCurrency(latestTotalIncome)} />
                           <Card title="총 지출" value={formatCurrency(latestTotalExpense)} />
@@ -328,17 +336,26 @@
                       <h2 className="text-2xl font-bold text-gray-700 mb-4">과거 보고서 목록</h2>
                       <div className="bg-white rounded-lg shadow-md overflow-hidden">
                           <ul className="divide-y divide-gray-200">
-                              {sortedReports.map(report => (
+                              {sortedReports.map(report => {
+                                const totalIncome = Object.values(report.financeIncome).reduce((sum, val) => sum + val, 0);
+                                const totalExpense = Object.values(report.financeExpense).reduce((sum, val) => sum + val, 0);
+                                return (
                                   <li key={report.id} className="p-4 hover:bg-gray-50 flex justify-between items-center">
                                     <div>
-                                      <p className="font-semibold text-brand-blue-700">{new Date(report.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                                      <p className="text-sm text-gray-600 mt-1">주일예배: {report.attendance.sundayWorship}명 | 새가족: {report.attendance.newcomers}명</p>
+                                      <p className="font-semibold text-brand-blue-700">{parseDateSafe(report.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                      <div className="text-sm text-gray-600 mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                                        <span>주일예배: <span className="font-medium">{report.attendance.sundayWorship}명</span></span>
+                                        <span>새가족: <span className="font-medium">{report.attendance.newcomers}명</span></span>
+                                        <span>총수입: <span className="font-medium text-blue-600">{formatCurrency(totalIncome)}</span></span>
+                                        <span>총지출: <span className="font-medium text-red-600">{formatCurrency(totalExpense)}</span></span>
+                                      </div>
                                     </div>
                                     <button onClick={() => onEditReport(report.id)} className="px-3 py-1 text-sm bg-gray-200 text-gray-700 font-semibold rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
                                       수정
                                     </button>
                                   </li>
-                              ))}
+                                );
+                              })}
                           </ul>
                       </div>
                   </section>
@@ -346,7 +363,7 @@
           );
       };
       
-      // --- NEW components/MonthlyStats.tsx ---
+      // --- From components/MonthlyStats.tsx ---
       const MonthlyStats = ({ reports }) => {
         const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
         
@@ -405,6 +422,109 @@
                 <div className="text-center p-8 bg-white rounded-lg shadow-md">
                     <h3 className="text-xl font-semibold text-gray-700">{selectedMonth} 데이터가 없습니다.</h3>
                     <p className="text-gray-500 mt-2">다른 월을 선택하거나 새로운 보고서를 작성해주세요.</p>
+                </div>
+            )}
+          </div>
+        );
+      };
+      
+      // --- NEW components/YearlyStats.tsx ---
+      const YearlyStats = ({ reports }) => {
+        const availableYears = useMemo(() => {
+          const years = new Set(reports.map(r => parseDateSafe(r.date).getFullYear()));
+          return Array.from(years).sort((a, b) => b - a);
+        }, [reports]);
+
+        const [selectedYear, setSelectedYear] = useState(availableYears[0] || new Date().getFullYear());
+
+        const yearlyData = useMemo(() => {
+          if (!selectedYear) {
+            return {
+              totalIncome: 0, totalExpense: 0, avgSundayWorship: 0, totalNewcomers: 0, reportCount: 0, monthlyBreakdown: []
+            };
+          }
+
+          const filteredReports = reports.filter(r => parseDateSafe(r.date).getFullYear() === selectedYear);
+
+          if (filteredReports.length === 0) {
+            return {
+              totalIncome: 0, totalExpense: 0, avgSundayWorship: 0, totalNewcomers: 0, reportCount: 0, monthlyBreakdown: []
+            };
+          }
+
+          const totalIncome = filteredReports.reduce((sum, r) => sum + Object.values(r.financeIncome).reduce((a, b) => a + b, 0), 0);
+          const totalExpense = filteredReports.reduce((sum, r) => sum + Object.values(r.financeExpense).reduce((a, b) => a + b, 0), 0);
+          const totalSundayWorship = filteredReports.reduce((sum, r) => sum + r.attendance.sundayWorship, 0);
+          const totalNewcomers = filteredReports.reduce((sum, r) => sum + r.attendance.newcomers, 0);
+          const reportCount = filteredReports.length;
+
+          const monthlyBreakdown = Array.from({ length: 12 }, (_, i) => ({
+              name: `${i + 1}월`,
+              '총 수입': 0,
+              '총 지출': 0,
+          }));
+
+          filteredReports.forEach(r => {
+              const monthIndex = parseDateSafe(r.date).getMonth();
+              monthlyBreakdown[monthIndex]['총 수입'] += Object.values(r.financeIncome).reduce((a, b) => a + b, 0);
+              monthlyBreakdown[monthIndex]['총 지출'] += Object.values(r.financeExpense).reduce((a, b) => a + b, 0);
+          });
+          
+          return {
+            totalIncome,
+            totalExpense,
+            avgSundayWorship: totalSundayWorship / reportCount,
+            totalNewcomers,
+            reportCount,
+            monthlyBreakdown
+          };
+
+        }, [reports, selectedYear]);
+
+        return (
+          <div className="space-y-6">
+            <section className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <h2 className="text-2xl font-bold text-gray-700">연도별 통계</h2>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="year-select" className="text-sm font-medium text-gray-700">연도 선택:</label>
+                  <select 
+                    id="year-select"
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+                    className="shadow-sm focus:ring-brand-blue-500 focus:border-brand-blue-500 block sm:text-sm border-gray-300 rounded-md"
+                  >
+                    {availableYears.map(year => <option key={year} value={year}>{year}년</option>)}
+                  </select>
+                </div>
+            </section>
+            
+             {yearlyData.reportCount > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card title="총 수입" value={formatCurrency(yearlyData.totalIncome)} />
+                    <Card title="총 지출" value={formatCurrency(yearlyData.totalExpense)} />
+                    <Card title="평균 주일예배" value={`${yearlyData.avgSundayWorship.toFixed(1)}명`} />
+                    <Card title="총 새가족" value={`${yearlyData.totalNewcomers}명`} />
+                  </div>
+                  <div className="bg-white p-6 rounded-lg shadow-md">
+                    <h3 className="text-xl font-bold text-gray-700 mb-4">{selectedYear}년 월별 재정 추이</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={yearlyData.monthlyBreakdown}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis tickFormatter={(val) => `₩${(val / 10000).toLocaleString()}만`} />
+                            <Tooltip formatter={(value) => formatCurrency(value)} />
+                            <Legend />
+                            <Bar dataKey="총 수입" fill="#36a9f8" />
+                            <Bar dataKey="총 지출" fill="#f87171" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+            ) : (
+                <div className="text-center p-8 bg-white rounded-lg shadow-md">
+                    <h3 className="text-xl font-semibold text-gray-700">{selectedYear}년 데이터가 없습니다.</h3>
+                    <p className="text-gray-500 mt-2">다른 연도를 선택하거나 새로운 보고서를 작성해주세요.</p>
                 </div>
             )}
           </div>
@@ -682,50 +802,50 @@
         const [draftReport, setDraftReport] = useLocalStorage('draftReport', EMPTY_REPORT);
         const [editingReportId, setEditingReportId] = useState(null);
 
-        const handleSaveDraft = useCallback((report) => {
+        const handleSaveDraft = (report) => {
           setDraftReport(report);
-        }, [setDraftReport]);
-
-        const handleAddNewReport = useCallback(() => {
+        };
+        
+        const handleAddNewReport = () => {
           setEditingReportId(null);
           setDraftReport({
             ...EMPTY_REPORT,
             date: new Date().toISOString().slice(0, 10),
           });
           setView('form');
-        }, [setDraftReport]);
+        };
 
-        const handleEditReport = useCallback((reportId) => {
+        const handleEditReport = (reportId) => {
           const reportToEdit = submittedReports.find(r => r.id === reportId);
           if (reportToEdit) {
             setEditingReportId(reportId);
             setDraftReport(reportToEdit);
             setView('form');
           }
-        }, [submittedReports, setDraftReport]);
+        };
 
-        const handleCancel = useCallback(() => {
+        const handleCancel = () => {
           setEditingReportId(null);
           setDraftReport(EMPTY_REPORT);
           setView('dashboard');
-        }, [setDraftReport]);
+        };
 
-        const handleSubmitReport = useCallback((report) => {
+        const handleSubmitReport = (report) => {
           if (editingReportId) {
             // Update existing report
             setSubmittedReports(prev =>
-              prev.map(r => r.id === editingReportId ? report : r)
+              prev.map(r => (r.id === editingReportId ? report : r))
             );
           } else {
             // Create new report
-            const reportToSubmit = {
-              ...report,
-              id: new Date().toISOString(),
-            };
+            const reportToSubmit = { ...report, id: new Date().toISOString() };
             setSubmittedReports(prevReports => [reportToSubmit, ...prevReports]);
           }
-          handleCancel(); // Reset state and switch view
-        }, [setSubmittedReports, editingReportId, handleCancel]);
+          // Reset state and switch view
+          setEditingReportId(null);
+          setDraftReport(EMPTY_REPORT);
+          setView('dashboard');
+        };
 
         return (
           <div className="min-h-screen bg-gray-50 text-gray-800">
@@ -748,6 +868,7 @@
                 />
               )}
               {view === 'monthly-stats' && <MonthlyStats reports={submittedReports} />}
+              {view === 'yearly-stats' && <YearlyStats reports={submittedReports} />}
             </main>
           </div>
         );
