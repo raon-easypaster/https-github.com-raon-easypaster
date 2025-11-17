@@ -819,7 +819,8 @@
           const reportToEdit = submittedReports.find(r => r.id === reportId);
           if (reportToEdit) {
             setEditingReportId(reportId);
-            setDraftReport(reportToEdit);
+            // Deep copy the report object to prevent mutations of the original state.
+            setDraftReport(JSON.parse(JSON.stringify(reportToEdit)));
             setView('form');
           }
         };
@@ -831,17 +832,18 @@
         };
 
         const handleSubmitReport = (report) => {
-          if (editingReportId) {
-            // Update existing report
-            setSubmittedReports(prev =>
-              prev.map(r => (r.id === editingReportId ? report : r))
-            );
-          } else {
-            // Create new report
-            const reportToSubmit = { ...report, id: new Date().toISOString() };
-            setSubmittedReports(prevReports => [reportToSubmit, ...prevReports]);
-          }
-          // Reset state and switch view
+          setSubmittedReports(prevReports => {
+            if (editingReportId) {
+              // Update existing report by mapping over the previous reports
+              return prevReports.map(r => (r.id === editingReportId ? report : r));
+            } else {
+              // Create a new report with a new ID
+              const reportToSubmit = { ...report, id: new Date().toISOString() };
+              return [reportToSubmit, ...prevReports];
+            }
+          });
+        
+          // Reset state and switch view after submission
           setEditingReportId(null);
           setDraftReport(EMPTY_REPORT);
           setView('dashboard');
