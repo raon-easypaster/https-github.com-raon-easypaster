@@ -831,21 +831,21 @@
           setView('dashboard');
         };
 
-        const handleSubmitReport = useCallback((report) => {
-            setSubmittedReports(prevReports => {
+        const handleSubmitReport = (reportDataFromForm) => {
+            setSubmittedReports(currentReports => {
                 if (editingReportId) {
-                    // Logic for updating an existing report
-                    const index = prevReports.findIndex(r => r.id === editingReportId);
-                    if (index > -1) {
-                        const newReports = [...prevReports];
-                        newReports[index] = report; // Replace the old report with the updated one
-                        return newReports;
+                    // UPDATE
+                    const reportIndex = currentReports.findIndex(r => r.id === editingReportId);
+                    if (reportIndex === -1) {
+                        return currentReports; // Should not happen, but as a safeguard
                     }
-                    return prevReports; // Return old state if not found
+                    const updatedReports = [...currentReports];
+                    updatedReports[reportIndex] = { ...reportDataFromForm, id: editingReportId };
+                    return updatedReports;
                 } else {
-                    // Logic for adding a new report
-                    const reportToSubmit = { ...report, id: new Date().toISOString() };
-                    return [reportToSubmit, ...prevReports];
+                    // CREATE
+                    const newReport = { ...reportDataFromForm, id: new Date().toISOString() };
+                    return [newReport, ...currentReports];
                 }
             });
 
@@ -853,7 +853,7 @@
             setEditingReportId(null);
             setDraftReport(EMPTY_REPORT);
             setView('dashboard');
-        }, [editingReportId, setSubmittedReports, setDraftReport, setEditingReportId, setView]);
+        };
 
 
         return (
