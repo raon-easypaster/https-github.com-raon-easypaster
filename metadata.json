@@ -1,0 +1,5 @@
+{
+  "name": "Church Weekly Report",
+  "description": "An application to create, manage, and analyze weekly administrative reports for a church, covering finances, attendance, visitations, and events. Data is stored locally and visualized for trend analysis.",
+  "requestFramePermissions": []
+}
